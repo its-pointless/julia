@@ -488,7 +488,7 @@ function unindent(str::AbstractString, indent::Int; tabwidth=8)
     String(take!(buf))
 end
 
-function convert(::Type{String}, chars::AbstractVector{Char})
+function String(chars::AbstractVector{Char})
     sprint(length(chars), io->begin
         state = start(chars)
         while !done(chars, state)
