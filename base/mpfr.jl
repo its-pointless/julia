@@ -127,7 +127,7 @@ convert(::Type{BigFloat}, x::Rational) = BigFloat(numerator(x)) / BigFloat(denom
 function tryparse(::Type{BigFloat}, s::AbstractString, base::Int=0)
     z = BigFloat()
     err = ccall((:mpfr_set_str, :libmpfr), Int32, (Ref{BigFloat}, Cstring, Int32, Int32), z, s, base, ROUNDING_MODE[])
-    err == 0 ? Nullable(z) : Nullable{BigFloat}()
+    err == 0 ? Some(z) : nothing
 end
 
 convert(::Type{Rational}, x::BigFloat) = convert(Rational{BigInt}, x)

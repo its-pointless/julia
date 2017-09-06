@@ -114,7 +114,6 @@ Core.:(===)
 Core.isa
 Base.isequal
 Base.isless
-Base.isless(::Nullable, ::Nullable)
 Base.ifelse
 Base.lexcmp
 Base.lexless
@@ -168,15 +167,16 @@ Base.instances
 ## Special Types
 
 ```@docs
-Core.Void
 Core.Any
-Base.Enums.@enum
 Core.Union
 Union{}
 Core.UnionAll
 Core.Tuple
 Base.Val
 Core.Vararg
+Core.Void
+Base.Some
+Base.Enums.@enum
 ```
 
 ## Generic Functions
@@ -210,15 +210,6 @@ Base.@gensym
 Base.@goto
 Base.@label
 Base.@polly
-```
-
-## Nullables
-
-```@docs
-Base.Nullable
-Base.get(::Nullable, ::Any)
-Base.isnull
-Base.unsafe_get
 ```
 
 ## System
@@ -285,7 +276,6 @@ Core.InterruptException
 Base.KeyError
 Base.LoadError
 Base.MethodError
-Base.NullException
 Core.OutOfMemoryError
 Core.ReadOnlyMemoryError
 Core.OverflowError

@@ -671,6 +671,11 @@ Deprecated or removed
   * `cumsum`, `cumprod`, `accumulate`, and their mutating versions now require a `dim`
     argument instead of defaulting to using the first dimension ([#24684]).
 
+  * `Nullable{T}` has been deprecated and moved to the Nullables package:
+    use `Union{T, Void}` or `Union{Some{T}, Void}` instead. `isnull(x)` can be replaced
+    with `x === nothing` and `unsafe_get(x)` with `get(x)`.
+    `NullException` has been removed ([#23642]).
+
 Command-line option changes
 ---------------------------
 
