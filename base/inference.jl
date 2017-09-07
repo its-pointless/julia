@@ -1846,7 +1846,7 @@ function abstract_call_gf_by_type(@nospecialize(f), @nospecialize(atype), sv::In
         end
         # many types have many matching constructors; try harder to infer simple type ctors
         if !has_free_typevars(tname)
-            max_methods = max(max_methods, 15)
+            #max_methods = max(max_methods, 15)
         end
     end
     min_valid = UInt[typemin(UInt)]
@@ -1914,7 +1914,13 @@ function abstract_call_gf_by_type(@nospecialize(f), @nospecialize(atype), sv::In
     return rettype
 end
 
+const deprecated_sym = Symbol("deprecated.jl")
+
 function abstract_call_method(method::Method, @nospecialize(f), @nospecialize(sig), sparams::SimpleVector, sv::InferenceState)
+    # TODO: remove with 0.7 deprecations
+    if method.file === deprecated_sym && method.sig == (Tuple{Type{T},Any} where T)
+        return Any
+    end
     topmost = nothing
     # Limit argument type tuple growth of functions:
     # look through the parents list to see if there's a call to the same method
