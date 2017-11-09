@@ -594,9 +594,9 @@ end
 
 macro big_str(s)
     n = tryparse(BigInt, s)
-    n !== nothing && return get(n)
+    n === nothing || return get(n)
     n = tryparse(BigFloat, s)
-    n !== nothing && return get(n)
+    n === nothing || return get(n)
     message = "invalid number format $s for BigInt or BigFloat"
     return :(throw(ArgumentError($message)))
 end

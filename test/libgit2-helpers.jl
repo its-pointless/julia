@@ -12,7 +12,7 @@ without having to authenticate against a real server.
 function credential_loop(
         valid_credential::AbstractCredentials,
         url::AbstractString,
-        user::Union{Some{<:AbstractString}, Void},
+        user::Union{AbstractString, Void},
         allowed_types::UInt32,
         payload::CredentialPayload)
     cb = Base.LibGit2.credentials_cb()
@@ -27,11 +27,12 @@ function credential_loop(
     err = Cint(0)
     while err == 0
         err = ccall(cb, Cint, (Ptr{Ptr{Void}}, Cstring, Cstring, Cuint, Any),
-                    libgitcred_ptr_ptr, url, get(user, C_NULL), allowed_types, payload)
+                    libgitcred_ptr_ptr, url, user === nothing ? C_NULL : user,
+                    allowed_types, payload)
         num_authentications += 1
 
         # Check if the callback provided us with valid credentials
-        if payload.credential !== nothing && get(payload.credential) == valid_credential
+        if payload.credential !== nothing && payload.credential == valid_credential
             LibGit2.approve(payload)
             break
         end
@@ -59,7 +60,7 @@ end
 function credential_loop(
         valid_credential::UserPasswordCredentials,
         url::AbstractString,
-        user::Union{Some{<:AbstractString}, Void}=nothing,
+        user::Union{AbstractString, Void}=nothing,
         payload::CredentialPayload=DEFAULT_PAYLOAD)
     credential_loop(valid_credential, url, user, 0x000001, payload)
 end
@@ -67,15 +68,7 @@ end
 function credential_loop(
         valid_credential::SSHCredentials,
         url::AbstractString,
-        user::Union{Some{<:AbstractString}, Void}=nothing,
+        user::Union{AbstractString, Void}=nothing,
         payload::CredentialPayload=DEFAULT_PAYLOAD)
     credential_loop(valid_credential, url, user, 0x000046, payload)
-end
-
-function credential_loop(
-        valid_credential::AbstractCredentials,
-        url::AbstractString,
-        user::AbstractString,
-        payload::CredentialPayload=DEFAULT_PAYLOAD)
-    credential_loop(valid_credential, url, Some(user), payload)
 end

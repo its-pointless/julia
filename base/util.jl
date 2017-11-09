@@ -608,7 +608,7 @@ getpass(prompt::AbstractString) = unsafe_string(ccall(:getpass, Cstring, (Cstrin
 end
 
 """
-    prompt(message; default="", password=false) -> Union{Some{String}, Void}
+    prompt(message; default="", password=false) -> Union{String, Void}
 
 Displays the `message` then waits for user input. Input is terminated when a newline (\\n)
 is encountered or EOF (^D) character is entered on a blank line. If a `default` is provided
@@ -630,7 +630,7 @@ function prompt(message::AbstractString; default::AbstractString="", password::B
         isempty(uinput) && return nothing  # Encountered an EOF
         uinput = chomp(uinput)
     end
-    Some(isempty(uinput) ? default : uinput)
+    isempty(uinput) ? default : uinput
 end
 
 # Windows authentication prompt
@@ -711,8 +711,8 @@ if Sys.iswindows()
 
         # Done.
         passbuf_ = passbuf[1:passlen[]-1]
-        result = Some((String(transcode(UInt8, usernamebuf[1:usernamelen[]-1])),
-                       String(transcode(UInt8, passbuf_))))
+        result = (String(transcode(UInt8, usernamebuf[1:usernamelen[]-1])),
+                  String(transcode(UInt8, passbuf_)))
         securezero!(passbuf_)
         securezero!(passbuf)
 

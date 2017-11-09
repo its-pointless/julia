@@ -911,27 +911,27 @@ Base.isempty(obj::AbstractGitObject) = (obj.ptr == C_NULL)
 abstract type GitObject <: AbstractGitObject end
 
 for (typ, owntyp, sup, cname) in [
-    (:GitRepo,           nothing,                       :AbstractGitObject, :git_repository),
-    (:GitConfig,         :(Union{Some{GitRepo}, Void}), :AbstractGitObject, :git_config),
-    (:GitIndex,          :(Union{Some{GitRepo}, Void}), :AbstractGitObject, :git_index),
-    (:GitRemote,         :GitRepo,                      :AbstractGitObject, :git_remote),
-    (:GitRevWalker,      :GitRepo,                      :AbstractGitObject, :git_revwalk),
-    (:GitReference,      :GitRepo,                      :AbstractGitObject, :git_reference),
-    (:GitDescribeResult, :GitRepo,                      :AbstractGitObject, :git_describe_result),
-    (:GitDiff,           :GitRepo,                      :AbstractGitObject, :git_diff),
-    (:GitDiffStats,      :GitRepo,                      :AbstractGitObject, :git_diff_stats),
-    (:GitAnnotated,      :GitRepo,                      :AbstractGitObject, :git_annotated_commit),
-    (:GitRebase,         :GitRepo,                      :AbstractGitObject, :git_rebase),
-    (:GitBlame,          :GitRepo,                      :AbstractGitObject, :git_blame),
-    (:GitStatus,         :GitRepo,                      :AbstractGitObject, :git_status_list),
-    (:GitBranchIter,     :GitRepo,                      :AbstractGitObject, :git_branch_iterator),
-    (:GitConfigIter,     nothing,                       :AbstractGitObject, :git_config_iterator),
-    (:GitUnknownObject,  :GitRepo,                      :GitObject,         :git_object),
-    (:GitCommit,         :GitRepo,                      :GitObject,         :git_commit),
-    (:GitBlob,           :GitRepo,                      :GitObject,         :git_blob),
-    (:GitTree,           :GitRepo,                      :GitObject,         :git_tree),
-    (:GitTag,            :GitRepo,                      :GitObject,         :git_tag),
-    (:GitTreeEntry,      :GitTree,                      :AbstractGitObject, :git_tree_entry),
+    (:GitRepo,           nothing,                 :AbstractGitObject, :git_repository),
+    (:GitConfig,         :(Union{GitRepo, Void}), :AbstractGitObject, :git_config),
+    (:GitIndex,          :(Union{GitRepo, Void}), :AbstractGitObject, :git_index),
+    (:GitRemote,         :GitRepo,                :AbstractGitObject, :git_remote),
+    (:GitRevWalker,      :GitRepo,                :AbstractGitObject, :git_revwalk),
+    (:GitReference,      :GitRepo,                :AbstractGitObject, :git_reference),
+    (:GitDescribeResult, :GitRepo,                :AbstractGitObject, :git_describe_result),
+    (:GitDiff,           :GitRepo,                :AbstractGitObject, :git_diff),
+    (:GitDiffStats,      :GitRepo,                :AbstractGitObject, :git_diff_stats),
+    (:GitAnnotated,      :GitRepo,                :AbstractGitObject, :git_annotated_commit),
+    (:GitRebase,         :GitRepo,                :AbstractGitObject, :git_rebase),
+    (:GitBlame,          :GitRepo,                :AbstractGitObject, :git_blame),
+    (:GitStatus,         :GitRepo,                :AbstractGitObject, :git_status_list),
+    (:GitBranchIter,     :GitRepo,                :AbstractGitObject, :git_branch_iterator),
+    (:GitConfigIter,     nothing,                 :AbstractGitObject, :git_config_iterator),
+    (:GitUnknownObject,  :GitRepo,                :GitObject,         :git_object),
+    (:GitCommit,         :GitRepo,                :GitObject,         :git_commit),
+    (:GitBlob,           :GitRepo,                :GitObject,         :git_blob),
+    (:GitTree,           :GitRepo,                :GitObject,         :git_tree),
+    (:GitTag,            :GitRepo,                :GitObject,         :git_tag),
+    (:GitTreeEntry,      :GitTree,                :AbstractGitObject, :git_tree_entry),
     ]
 
     if owntyp === nothing
@@ -963,11 +963,9 @@ for (typ, owntyp, sup, cname) in [
                 return obj
             end
         end
-        if isa(owntyp, Expr) && owntyp.args[1] == :Union && owntyp.args[2].args[1] == :Some
+        if isa(owntyp, Expr) && owntyp.args[1] == :Union && owntyp.args[3] == :Void
             @eval begin
                 $typ(ptr::Ptr{Void}, fin::Bool=true) = $typ(nothing, ptr, fin)
-                $typ(owner::$(owntyp.args[2].args[2]), ptr::Ptr{Void}, fin::Bool=true) =
-                    $typ(Some(owner), ptr, fin)
             end
         end
     end
@@ -1253,8 +1251,8 @@ A `CredentialPayload` instance is expected to be `reset!` whenever it will be us
 different URL.
 """
 mutable struct CredentialPayload <: Payload
-    explicit::Union{Some{<:AbstractCredentials}, Void}
-    cache::Union{Some{CachedCredentials}, Void}
+    explicit::Union{AbstractCredentials, Void}
+    cache::Union{CachedCredentials, Void}
     allow_ssh_agent::Bool    # Allow the use of the SSH agent to get credentials
     allow_git_helpers::Bool  # Allow the use of git credential helpers
     allow_prompt::Bool       # Allow prompting the user for credentials
@@ -1262,7 +1260,7 @@ mutable struct CredentialPayload <: Payload
     config::GitConfig
 
     # Ephemeral state fields
-    credential::Union{Some{<:AbstractCredentials}, Void}
+    credential::Union{AbstractCredentials, Void}
     first_pass::Bool
     use_ssh_agent::Bool
     use_env::Bool
@@ -1275,8 +1273,8 @@ mutable struct CredentialPayload <: Payload
     host::String
 
     function CredentialPayload(
-            credential::Union{Some{<:AbstractCredentials}, Void}=nothing,
-            cache::Union{Some{CachedCredentials}, Void}=nothing,
+            credential::Union{AbstractCredentials, Void}=nothing,
+            cache::Union{CachedCredentials, Void}=nothing,
             config::GitConfig=GitConfig();
             allow_ssh_agent::Bool=true,
             allow_git_helpers::Bool=true,
@@ -1287,12 +1285,8 @@ mutable struct CredentialPayload <: Payload
     end
 end
 
-function CredentialPayload(credential::AbstractCredentials; kwargs...)
-    CredentialPayload(Some(credential), nothing; kwargs...)
-end
-
 function CredentialPayload(cache::CachedCredentials; kwargs...)
-    CredentialPayload(nothing, Some(cache); kwargs...)
+    CredentialPayload(nothing, cache; kwargs...)
 end
 
 """
@@ -1325,13 +1319,12 @@ when authentication was successful.
 """
 function approve(p::CredentialPayload)
     p.credential === nothing && return  # No credentials were used
-    cred = Base.get(p.credential)
 
     if p.cache !== nothing
-        approve(Base.get(p.cache), cred, p.url)
+        approve(p.cache, p.credential, p.url)
     end
     if p.allow_git_helpers
-        approve(p.config, cred, p.url)
+        approve(p.config, p.credential, p.url)
     end
 end
 
@@ -1343,12 +1336,11 @@ called when authentication was unsuccessful.
 """
 function reject(p::CredentialPayload)
     p.credential === nothing && return  # No credentials were used
-    cred = Base.get(p.credential)
 
     if p.cache !== nothing
-        reject(Base.get(p.cache), cred, p.url)
+        reject(p.cache, p.credential, p.url)
     end
     if p.allow_git_helpers
-        reject(p.config, cred, p.url)
+        reject(p.config, p.credential, p.url)
     end
 end
