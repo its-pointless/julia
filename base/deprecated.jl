@@ -2117,6 +2117,8 @@ end
 finalizer(f::Ptr{Void}, o::Ptr{Void}) = invoke(finalizer, Tuple{Ptr{Void}, Any}, f, o)
 finalizer(f::Ptr{Void}, o::Function) = invoke(finalizer, Tuple{Ptr{Void}, Any}, f, o)
 
+@deprecate sprint(size::Integer, f::Function, args...; env=nothing) _sprint(f, args; size=size, env=env)
+
 # END 0.7 deprecations
 
 # BEGIN 1.0 deprecations
