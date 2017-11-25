@@ -305,7 +305,7 @@ function push(repo::GitRepo; remote::AbstractString="origin",
               refspecs::Vector{<:AbstractString}=AbstractString[],
               force::Bool=false,
               payload::Union{CredentialPayload,AbstractCredentials,Void}=CredentialPayload())
-    p = reset!(deprecate_nullable_creds(:push, "repo", payload))
+    p = reset!(deprecate_nullable_creds(:push, "repo", payload), GitConfig(repo))
     rmt = if isempty(remoteurl)
         get(GitRemote, repo, remote)
     else
