@@ -69,7 +69,7 @@
 #define JL_DLLEXPORT __attribute__ ((visibility("default")))
 #endif
 
-#ifdef _OS_LINUX_
+#if defined(_OS_LINUX_) && !defined(__BIONIC__)
 #include <endian.h>
 #define LITTLE_ENDIAN  __LITTLE_ENDIAN
 #define BIG_ENDIAN     __BIG_ENDIAN
@@ -138,7 +138,9 @@ typedef unsigned char  byte_t;   /* 1 byte */
 #ifdef _P64
 #define TOP_BIT 0x8000000000000000
 #define NBITS 64
-typedef uint64_t uint_t;  // preferred int type on platform
+#ifndef __BIONIC__
+typedef uint64_t uint_t;// preferred int type on platform
+#endif
 typedef int64_t int_t;
 #else
 #define TOP_BIT 0x80000000
