@@ -47,7 +47,9 @@
 #ifdef _CPU_AARCH64_
 #  include <sys/auxv.h>
 #endif
-
+#if defined(_CPU_AARCH64_) && defined(__BIONIC__)
+#include <aarch64-linux-android/asm/hwcap.h>
+#endif
 /* CRC-32C (iSCSI) polynomial in reversed bit order. */
 #define POLY 0x82f63b78
 

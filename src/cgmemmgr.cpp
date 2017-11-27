@@ -173,7 +173,7 @@ static intptr_t get_anon_hdl(void)
     char shm_name[] = "julia-codegen-0123456789-0123456789/tmp///";
     pid_t pid = getpid();
     // `shm_open` can't be mapped exec on mac
-#  ifndef _OS_DARWIN_
+#  if !defined(_OS_DARWIN_) && !defined(__BIONIC__)
     do {
         snprintf(shm_name, sizeof(shm_name),
                  "julia-codegen-%d-%d", (int)pid, rand());
