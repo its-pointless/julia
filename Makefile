@@ -11,7 +11,23 @@ include $(JULIAHOME)/Make.inc
 VERSDIR := v`cut -d. -f1-2 < $(JULIAHOME)/VERSION`
 
 default: $(JULIA_BUILD_MODE) # contains either "debug" or "release"
+termux: setuplinks release
 all: debug release
+
+
+setuplinks :
+	mkdir -p $(BUILDROOT)/usr/lib/julia
+	ln -s /system/lib64/libm.so $(BUILDROOT)/usr/lib/julia
+	ln -s $(PREFIX)/lib/libopenblas.so $(BUILDROOT)/usr/lib/julia
+	ln -s $(PREFIX)/lib/libarpack.so $(BUILDROOT)/usr/lib/julia
+	ln -s $(PREFIX)/lib/libpcre2-8.so $(BUILDROOT)/usr/lib/julia
+	ln -s $(PREFIX)/lib/libcurl.so $(BUILDROOT)/usr/lib/julia
+	ln -s $(PREFIX)/lib/libssh2.so $(BUILDROOT)/usr/lib/julia
+	ln -s $(PREFIX)/lib/libblas.so $(BUILDROOT)/usr/lib/julia
+	ln -s $(PREFIX)/lib/liblapack.so $(BUILDROOT)/usr/lib/julia
+	ln -s $(PREFIX)/lib/libgit2.so $(BUILDROOT)/usr/lib/julia
+	ln -s $(PREFIX)/lib/libgmp.so $(BUILDROOT)/usr/lib/julia
+	ln -s $(PREFIX)/lib/libmpfr.so $(BUILDROOT)/usr/lib/julia
 
 # sort is used to remove potential duplicates
 DIRS := $(sort $(build_bindir) $(build_depsbindir) $(build_libdir) $(build_private_libdir) $(build_libexecdir) $(build_includedir) $(build_includedir)/julia $(build_sysconfdir)/julia $(build_datarootdir)/julia $(build_datarootdir)/julia/site $(build_man1dir))
