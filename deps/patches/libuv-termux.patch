@@ -1,0 +1,48 @@
+From abd9ae0b20855a04b61829142d183f547d5fcb4f Mon Sep 17 00:00:00 2001
+From: its-pointless <bored@goat.si>
+Date: Sat, 2 Dec 2017 07:16:52 +1100
+Subject: [PATCH] use bthread for pthread cancel
+
+---
+ src/unix/process.c | 5 +++++
+ src/uv-common.c    | 4 ++--
+ 2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/unix/process.c b/src/unix/process.c
+index e41675aaf..68ccff961 100644
+--- a/src/unix/process.c
++++ b/src/unix/process.c
+@@ -34,6 +34,11 @@
+ #include <poll.h>
+ #include <signal.h>
+ 
++#ifdef __ANDROID__
++/* termux_gcc needs bthread-dev */
++#include <bthread.h>
++#endif
++
+ #if defined(__APPLE__) && !TARGET_OS_IPHONE
+ # include <crt_externs.h>
+ # define environ (*_NSGetEnviron())
+diff --git a/src/uv-common.c b/src/uv-common.c
+index 4ef3bf926..669a5c6f6 100644
+--- a/src/uv-common.c
++++ b/src/uv-common.c
+@@ -371,7 +371,7 @@ int uv_thread_setaffinity(uv_thread_t *tid,
+ 
+   return 0;
+ #else
+-#if defined(__APPLE__) || defined(_AIX)
++#if defined(__APPLE__) || defined(_AIX) || defined(__BIONIC__)
+   return -ENOTSUP;
+ #else
+   int i, r;
+@@ -420,7 +420,7 @@ int uv_thread_getaffinity(uv_thread_t *tid,
+ 
+   return 0;
+ #else
+-#if defined(__APPLE__) || defined(_AIX)
++#if defined(__APPLE__) || defined(_AIX) || defined(__BIONIC__)
+   return -ENOTSUP;
+ #else
+   int i;
