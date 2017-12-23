@@ -25,6 +25,7 @@ UV_FLAGS := --disable-shared $(UV_MFLAGS)
 endif
 
 $(BUILDDIR)/$(LIBUV_SRC_DIR)/build-configured: $(SRCCACHE)/$(LIBUV_SRC_DIR)/source-extracted
+	patch -p1 -N  -d  $(SRCCACHE)/$(LIBUV_SRC_DIR)  < $(SRCDIR)/patches/libuv-termux.patch || return 0;
 	touch -c $(SRCCACHE)/$(LIBUV_SRC_DIR)/aclocal.m4 # touch a few files to prevent autogen from getting called
 	touch -c $(SRCCACHE)/$(LIBUV_SRC_DIR)/Makefile.in
 	touch -c $(SRCCACHE)/$(LIBUV_SRC_DIR)/configure

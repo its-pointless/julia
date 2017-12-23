@@ -7,7 +7,9 @@ LIBWHICH_OBJ_LIB := $(build_depsbindir)/libwhich
 LIBWHICH_MFLAGS := CC="$(CC)"
 
 $(BUILDDIR)/$(LIBWHICH_SRC_DIR)/build-compiled: $(BUILDDIR)/$(LIBWHICH_SRC_DIR)/source-extracted
-	$(MAKE) -C $(dir $<) $(LIBWHICH_MFLAGS) libwhich
+	patch -p1 -N  -d  $(BUILDDIR)/$(LIBWHICH_SRC_DIR)  < $(SRCDIR)/patches/libwhich-termux.patch || return 0;
+
+	$(MAKE) -C $(dir $<) libwhich
 	echo 1 > $@
 
 $(BUILDDIR)/$(LIBWHICH_SRC_DIR)/build-checked: $(BUILDDIR)/$(LIBWHICH_SRC_DIR)/build-compiled
