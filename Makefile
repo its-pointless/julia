@@ -16,7 +16,13 @@ all: debug release
 
 setuplinks :
 	mkdir -p $(BUILDROOT)/usr/lib/julia
+ifneq ("$(wildcard /system/lib64/libm.so)","")
 	ln -sf /system/lib64/libm.so $(BUILDROOT)/usr/lib/julia
+else
+	ln -sf /system/lib/libm.so $(BUILDROOT)/usr/lib/julia
+
+endif
+
 	ln -sf $(PREFIX)/lib/libopenblas.so $(BUILDROOT)/usr/lib/julia
 	ln -sf $(PREFIX)/lib/libarpack.so $(BUILDROOT)/usr/lib/julia
 	ln -sf $(PREFIX)/lib/libpcre2-8.so $(BUILDROOT)/usr/lib/julia
