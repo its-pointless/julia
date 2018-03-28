@@ -2,10 +2,10 @@
 
 using Base.CoreLogging
 import Base.CoreLogging: BelowMinLevel, Debug, Info, Warn, Error,
-    handle_message, shouldlog, min_enabled_level
+    handle_message, shouldlog, min_enabled_level, catch_exceptions
 
 import Test: collect_test_logs, TestLogger
-using Base.Printf.@sprintf
+using Base.Printf: @sprintf
 
 #-------------------------------------------------------------------------------
 @testset "Logging" begin
@@ -22,7 +22,7 @@ end
 
 @testset "Log message formatting" begin
     @test_logs (Info, "sum(A) = 16.0") @info begin
-        A = ones(4,4)
+        A = fill(1.0, 4, 4)
         "sum(A) = $(sum(A))"
     end
     x = 10.50
@@ -59,7 +59,7 @@ end
     @test record.file == Base.source_path()
     @test record.line == kwargs[:real_line]
     @test record.id isa Symbol
-    @test ismatch(r"^.*logging_[[:xdigit:]]{8}$", String(record.id))
+    @test occursin(r"^.*logging_[[:xdigit:]]{8}$", String(record.id))
 
     # User-defined metadata
     @test kwargs[:bar_val] === bar_val
@@ -69,13 +69,13 @@ end
 
     # Keyword values accessible from message block
     record2 = logs[2]
-    @test ismatch((Info,"test2"), record2)
+    @test occursin((Info, "test2"), record2)
     kwargs = record2.kwargs
     @test kwargs[:value_in_msg_block] === 1000.0
 
     # Splatting of keywords
     record3 = logs[3]
-    @test ismatch((Info,"test3"), record3)
+    @test occursin((Info, "test3"), record3)
     kwargs = record3.kwargs
     @test sort(collect(keys(kwargs))) == [:a, :b]
     @test kwargs[:a] === 1
@@ -84,7 +84,7 @@ end
 
 @testset "Log message exception handling" begin
     # Exceptions in message creation are caught by default
-    @test_logs (Error,) catch_exceptions=true  @info "foo $(1÷0)"
+    @test_logs (Error,Test.Ignored(),Test.Ignored(),:logevent_error) catch_exceptions=true  @info "foo $(1÷0)"
     # Exceptions propagate if explicitly disabled for the logger (by default
     # for the test logger)
     @test_throws DivideError collect_test_logs() do
@@ -221,16 +221,17 @@ end
 
 @testset "SimpleLogger" begin
     # Log level limiting
-    @test min_enabled_level(SimpleLogger(DevNull, Debug)) == Debug
-    @test min_enabled_level(SimpleLogger(DevNull, Error)) == Error
+    @test min_enabled_level(SimpleLogger(devnull, Debug)) == Debug
+    @test min_enabled_level(SimpleLogger(devnull, Error)) == Error
 
     # Log limiting
-    logger = SimpleLogger(DevNull)
+    logger = SimpleLogger(devnull)
     @test shouldlog(logger, Info, Base, :group, :asdf) === true
     handle_message(logger, Info, "msg", Base, :group, :asdf, "somefile", 1, maxlog=2)
     @test shouldlog(logger, Info, Base, :group, :asdf) === true
     handle_message(logger, Info, "msg", Base, :group, :asdf, "somefile", 1, maxlog=2)
     @test shouldlog(logger, Info, Base, :group, :asdf) === false
+    @test catch_exceptions(logger) === false
 
     # Log formatting
     function genmsg(level, message, _module, filepath, line; kws...)
@@ -238,34 +239,40 @@ end
         logger = SimpleLogger(io, Debug)
         handle_message(logger, level, message, _module, :group, :id,
                        filepath, line; kws...)
-        s = String(take!(io))
-        # Remove the small amount of color, as `Base.print_with_color` can't be
-        # simply controlled.
-        s = replace(s, r"^\e\[1m\e\[..m(.*)\e\[39m\e\[22m"m => s"\1")
-        # println(s)
-        s
+        String(take!(io))
     end
 
     # Simple
     @test genmsg(Info, "msg", Main, "some/path.jl", 101) ==
     """
-    I- msg -Info:Main:path.jl:101
+    ┌ Info: msg
+    └ @ Main some/path.jl:101
     """
 
     # Multiline message
     @test genmsg(Warn, "line1\nline2", Main, "some/path.jl", 101) ==
     """
-    W- line1
-    |  line2 -Warn:Main:path.jl:101
+    ┌ Warning: line1
+    │ line2
+    └ @ Main some/path.jl:101
     """
 
     # Keywords
     @test genmsg(Error, "msg", Base, "other.jl", 101, a=1, b="asdf") ==
     """
-    E- msg -Error:Base:other.jl:101
-    |  a = 1
-    |  b = asdf
+    ┌ Error: msg
+    │   a = 1
+    │   b = asdf
+    └ @ Base other.jl:101
     """
+end
+
+# Issue #26273
+let m = Module(:Bare26273i, false)
+    eval(m, :(import Base: @error))
+    @test_logs (:error, "Hello") eval(m, quote
+        @error "Hello"
+    end)
 end
 
 end

@@ -35,7 +35,7 @@ The following data types exist in lowered form:
 
   * `LineNumberNode`
 
-    Contains a single number, specifying the line number the next statement came from.
+    Contains a number and a file name, specifying the line number the next statement came from.
 
   * `LabelNode`
 
@@ -435,12 +435,12 @@ parses as `(macrocall (|.| Core '@doc) (line) "some docs" (= (call f x) (block x
 
 | Input               | AST                                          |
 |:------------------- |:-------------------------------------------- |
-| `import a`          | `(import a)`                                 |
-| `import a.b.c`      | `(import a b c)`                             |
-| `import ...a`       | `(import . . . a)`                           |
-| `import a.b, c.d`   | `(toplevel (import a b) (import c d))`       |
-| `import Base: x`    | `(import Base x)`                            |
-| `import Base: x, y` | `(toplevel (import Base x) (import Base y))` |
+| `import a`          | `(import (. a))`                             |
+| `import a.b.c`      | `(import (. a b c))`                         |
+| `import ...a`       | `(import (. . . . a))`                       |
+| `import a.b, c.d`   | `(import (. a b) (. c d))`                   |
+| `import Base: x`    | `(import (: (. Base) (. x)))`                |
+| `import Base: x, y` | `(import (: (. Base) (. x) (. y)))`          |
 | `export a, b`       | `(export a b)`                               |
 
 ### Numbers

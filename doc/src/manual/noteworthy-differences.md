@@ -7,9 +7,9 @@ major syntactic and functional differences. The following are some noteworthy di
 may trip up Julia users accustomed to MATLAB:
 
   * Julia arrays are indexed with square brackets, `A[i,j]`.
-  * Julia arrays are assigned by reference. After `A=B`, changing elements of `B` will modify `A`
+  * Julia arrays are not copied when assigned to another variable. After `A = B`, changing elements of `B` will modify `A`
     as well.
-  * Julia values are passed and assigned by reference. If a function modifies an array, the changes
+  * Julia values are not copied when passed to a function. If a function modifies an array, the changes
     will be visible in the caller.
   * Julia does not automatically grow arrays in an assignment statement. Whereas in MATLAB `a(4) = 3.2`
     can create the array `a = [0 0 0 3.2]` and `a(5) = 7` can grow it into `a = [0 0 0 3.2 7]`, the
@@ -38,7 +38,7 @@ may trip up Julia users accustomed to MATLAB:
     use [`collect(a:b)`](@ref). Generally, there is no need to call `collect` though. An `AbstractRange` object will
     act like a normal array in most cases but is more efficient because it lazily computes its values.
     This pattern of creating specialized objects instead of full arrays is used frequently, and is
-    also seen in functions such as [`linspace`](@ref), or with iterators such as `enumerate`, and
+    also seen in functions such as [`range`](@ref), or with iterators such as `enumerate`, and
     `zip`. The special objects can mostly be used as if they were normal arrays.
   * Functions in Julia return values from their last expression or the `return` keyword instead of
     listing the names of variables to return in the function definition (see [The return Keyword](@ref)
@@ -140,7 +140,7 @@ For users coming to Julia from R, these are some noteworthy differences:
     In Julia, they cannot be used interchangeably.
   * Julia's [`diag`](@ref) and [`diagm`](@ref) are not like R's.
   * Julia cannot assign to the results of function calls on the left hand side of an assignment operation:
-    you cannot write `diag(M) = ones(n)`.
+    you cannot write `diag(M) = fill(1, n)`.
   * Julia discourages populating the main namespace with functions. Most statistical functionality
     for Julia is found in [packages](https://pkg.julialang.org/) under the [JuliaStats organization](https://github.com/JuliaStats).
     For example:
@@ -153,7 +153,7 @@ For users coming to Julia from R, these are some noteworthy differences:
   * Julia encourages users to write their own types, which are easier to use than S3 or S4 objects
     in R. Julia's multiple dispatch system means that `table(x::TypeA)` and `table(x::TypeB)` act
     like R's `table.TypeA(x)` and `table.TypeB(x)`.
-  * In Julia, values are passed and assigned by reference. If a function modifies an array, the changes
+  * In Julia, values are not copied when assigned or passed to a function. If a function modifies an array, the changes
     will be visible in the caller. This is very different from R and allows new functions to operate
     on large data structures much more efficiently.
   * In Julia, vectors and matrices are concatenated using [`hcat`](@ref), [`vcat`](@ref) and
@@ -211,7 +211,7 @@ For users coming to Julia from R, these are some noteworthy differences:
     by default. To get optimal performance when looping over arrays, the order of the loops should
     be reversed in Julia relative to NumPy (see relevant section of [Performance Tips](@ref man-performance-tips)).
   * Julia's updating operators (e.g. `+=`, `-=`, ...) are *not in-place* whereas NumPy's are. This
-    means `A = ones(4); B = A; B += 3` doesn't change values in `A`, it rather rebinds the name `B`
+    means `A = [1, 1]; B = A; B += [3, 3]` doesn't change values in `A`, it rather rebinds the name `B`
     to the result of the right-hand side `B = B + 3`, which is a new array. For in-place operation, use `B .+= 3`
     (see also [dot operators](@ref man-dot-operators)), explicit loops, or `InplaceOps.jl`.
   * Julia evaluates default values of function arguments every time the method is invoked, unlike
@@ -227,13 +227,13 @@ For users coming to Julia from R, these are some noteworthy differences:
     This syntax is not just syntactic sugar for a reference to a pointer or address as in C/C++. See
     the Julia documentation for the syntax for array construction (it has changed between versions).
   * In Julia, indexing of arrays, strings, etc. is 1-based not 0-based.
-  * Julia arrays are assigned by reference. After `A=B`, changing elements of `B` will modify `A`
+  * Julia arrays are not copied when assigned to another variable. After `A = B`, changing elements of `B` will modify `A`
     as well. Updating operators like `+=` do not operate in-place, they are equivalent to `A = A + B`
     which rebinds the left-hand side to the result of the right-hand side expression.
   * Julia arrays are column major (Fortran ordered) whereas C/C++ arrays are row major ordered by
     default. To get optimal performance when looping over arrays, the order of the loops should be
     reversed in Julia relative to C/C++ (see relevant section of [Performance Tips](@ref man-performance-tips)).
-  * Julia values are passed and assigned by reference. If a function modifies an array, the changes
+  * Julia values are not copied when assigned or passed to a function. If a function modifies an array, the changes
     will be visible in the caller.
   * In Julia, whitespace is significant, unlike C/C++, so care must be taken when adding/removing
     whitespace from a Julia program.
@@ -295,7 +295,7 @@ For users coming to Julia from R, these are some noteworthy differences:
     and have both a function-like syntax, `@mymacro(arg1, arg2, arg3)`, and a statement-like syntax,
     `@mymacro arg1 arg2 arg3`. The forms are interchangable; the function-like form is particularly
     useful if the macro appears within another expression, and is often clearest. The statement-like
-    form is often used to annotate blocks, as in the parallel `for` construct: `@parallel for i in 1:n; #= body =#; end`.
+    form is often used to annotate blocks, as in the distributed `for` construct: `@distributed for i in 1:n; #= body =#; end`.
     Where the end of the macro construct may be unclear, use the function-like form.
   * Julia now has an enumeration type, expressed using the macro `@enum(name, value1, value2, ...)`
     For example: `@enum(Fruit, banana=1, apple, pear)`

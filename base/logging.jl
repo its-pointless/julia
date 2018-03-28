@@ -175,11 +175,8 @@ There's also some key value pairs which have conventional meaning:
   * `maxlog=integer` should be used as a hint to the backend that the message
     should be displayed no more than `maxlog` times.
   * `exception=ex` should be used to transport an exception with a log message,
-    often used with `@error`. `AbstractLoggers` should assume that the
-    associated backtrace can be obtained from `catch_backtrace()`. If the log
-    message is emitted outside the catch block which generated `ex`, an
-    associated backtrace `bt` may be attached explicitly using
-    `exception=(ex,bt)`.
+    often used with `@error`. An associated backtrace `bt` may be attached
+    using the tuple `exception=(ex,bt)`.
 
 # Examples
 
@@ -240,7 +237,7 @@ function log_record_id(_module, level, message_ex)
     # as we increment h to resolve any collisions.
     h = hash(string(modname, level, message_ex)) % (1<<31)
     while true
-        id = Symbol(modname, '_', hex(h, 8))
+        id = Symbol(modname, '_', string(h, base = 16, pad = 8))
         # _log_record_ids is a registry of log record ids for use during
         # compilation, to ensure uniqueness of ids.  Note that this state will
         # only persist during module compilation so it will be empty when a
@@ -269,10 +266,9 @@ function logmsg_code(_module, file, line, level, message, exs...)
             if k == :_id
                 # id may be overridden if you really want several log
                 # statements to share the same id (eg, several pertaining to
-                # the same progress step).
-                #
-                # TODO: Refine this - doing it as is, is probably a bad idea
-                # for consistency, and is hard to make unique between modules.
+                # the same progress step).  In those cases it may be wise to
+                # manually call log_record_id to get a unique id in the same
+                # format.
                 id = esc(v)
             elseif k == :_module
                 _module = esc(v)
@@ -301,7 +297,7 @@ function logmsg_code(_module, file, line, level, message, exs...)
     quote
         level = $level
         std_level = convert(LogLevel, level)
-        if std_level >= _min_enabled_level[]
+        if std_level >= getindex(_min_enabled_level)
             logstate = current_logstate()
             if std_level >= logstate.min_enabled_level
                 logger = logstate.logger
@@ -311,15 +307,17 @@ function logmsg_code(_module, file, line, level, message, exs...)
                 # Second chance at an early bail-out, based on arbitrary
                 # logger-specific logic.
                 if shouldlog(logger, level, _module, group, id)
-                    # Bind log record generation into a closure, allowing us to
-                    # defer creation of the records until after filtering.
-                    create_msg = function cm(logger, level, _module, group, id, file, line)
-                        msg = $(esc(message))
-                        handle_message(logger, level, msg, _module, group, id, file, line; $(kwargs...))
-                    end
                     file = $file
                     line = $line
-                    dispatch_message(logger, level, _module, group, id, file, line, create_msg)
+                    try
+                        msg = $(esc(message))
+                        handle_message(logger, level, msg, _module, group, id, file, line; $(kwargs...))
+                    catch err
+                        if !catch_exceptions(logger)
+                            rethrow(err)
+                        end
+                        logging_error(logger, level, _module, group, id, file, line, err)
+                    end
                 end
             end
         end
@@ -327,37 +325,33 @@ function logmsg_code(_module, file, line, level, message, exs...)
     end
 end
 
-# Call the log message creation function, and dispatch the result to `logger`.
-# TODO: Consider some @nospecialize annotations here
-# TODO: The `logger` is loaded from global state and inherently non-inferrable,
-# so it might be nice to sever all back edges from `dispatch_message` to
-# functions which call it. This function should always return `nothing`.
-@noinline function dispatch_message(logger, level, _module, group, id,
-                                    filepath, line, create_msg)
+# Report an error in log message creation (or in the logger itself).
+@noinline function logging_error(logger, level, _module, group, id,
+                                 filepath, line, err)
     try
-        create_msg(logger, level, _module, group, id, filepath, line)
-    catch err
-        if !catch_exceptions(logger)
-            rethrow(err)
-        end
-        # Try really hard to get the message to the logger, with
-        # progressively less information.
+        msg = "Exception while generating log record in module $_module at $filepath:$line"
+        handle_message(logger, Error, msg, _module, :logevent_error, id, filepath, line; exception=(err,catch_backtrace()))
+    catch err2
         try
-            msg = "Exception while generating log record in module $_module at $filepath:$line"
-            handle_message(logger, Error, msg, _module, group, id, filepath, line; exception=err)
-        catch err2
-            try
-                # Give up and write to STDERR, in three independent calls to
-                # increase the odds of it getting through.
-                print(STDERR, "Exception handling log message: ")
-                println(STDERR, err)
-                println(STDERR, "  module=$_module  file=$filepath  line=$line")
-                println(STDERR, "  Second exception: ", err2)
-            catch
-            end
+            # Give up and write to STDERR, in three independent calls to
+            # increase the odds of it getting through.
+            print(stderr, "Exception handling log message: ")
+            println(stderr, err)
+            println(stderr, "  module=$_module  file=$filepath  line=$line")
+            println(stderr, "  Second exception: ", err2)
+        catch
         end
     end
     nothing
+end
+
+# Log a message. Called from the julia C code; kwargs is in the format
+# Any[key1,val1, ...] for simplicity in construction on the C side.
+function logmsg_shim(level, message, _module, group, id, file, line, kwargs)
+    real_kws = Any[(kwargs[i],kwargs[i+1]) for i in 1:2:length(kwargs)]
+    @logmsg(convert(LogLevel, level), message,
+            _module=_module, _id=id, _group=group,
+            _file=String(file), _line=line, real_kws...)
 end
 
 # Global log limiting mechanism for super fast but inflexible global log
@@ -372,8 +366,6 @@ struct LogState
 end
 
 LogState(logger) = LogState(LogLevel(min_enabled_level(logger)), logger)
-
-_global_logstate = LogState(NullLogger()) # See __init__
 
 function current_logstate()
     logstate = current_task().logstate
@@ -457,7 +449,7 @@ current_logger() = current_logstate().logger
 #-------------------------------------------------------------------------------
 # SimpleLogger
 """
-    SimpleLogger(stream=STDERR, min_level=Info)
+    SimpleLogger(stream=stderr, min_level=Info)
 
 Simplistic logger for logging all messages with level greater than or equal to
 `min_level` to `stream`.
@@ -467,41 +459,38 @@ struct SimpleLogger <: AbstractLogger
     min_level::LogLevel
     message_limits::Dict{Any,Int}
 end
-SimpleLogger(stream::IO=STDERR, level=Info) = SimpleLogger(stream, level, Dict{Any,Int}())
+SimpleLogger(stream::IO=stderr, level=Info) = SimpleLogger(stream, level, Dict{Any,Int}())
 
 shouldlog(logger::SimpleLogger, level, _module, group, id) =
     get(logger.message_limits, id, 1) > 0
 
 min_enabled_level(logger::SimpleLogger) = logger.min_level
 
+catch_exceptions(logger::SimpleLogger) = false
+
 function handle_message(logger::SimpleLogger, level, message, _module, group, id,
                         filepath, line; maxlog=nothing, kwargs...)
-    # TODO: Factor out more complex things here into a separate logger in
-    # stdlib: in particular maxlog support + colorization.
     if maxlog != nothing && maxlog isa Integer
         remaining = get!(logger.message_limits, id, maxlog)
         logger.message_limits[id] = remaining - 1
         remaining > 0 || return
     end
-    levelstr = string(level)
-    color = level < Info  ? :blue :
-            level < Warn  ? :cyan :
-            level < Error ? :yellow : :red
     buf = IOBuffer()
     iob = IOContext(buf, logger.stream)
-    print_with_color(color, iob, first(levelstr), "- ", bold=true)
-    msglines = split(string(message), '\n')
-    for i in 1:length(msglines)-1
-        println(iob, msglines[i])
-        print_with_color(color, iob, "|  ", bold=true)
+    levelstr = level == Warn ? "Warning" : string(level)
+    msglines = split(chomp(string(message)), '\n')
+    println(iob, "┌ ", levelstr, ": ", msglines[1])
+    for i in 2:length(msglines)
+        println(iob, "│ ", msglines[i])
     end
-    println(iob, msglines[end], " -", levelstr, ":", _module, ":", basename(filepath), ":", line)
     for (key,val) in pairs(kwargs)
-        print_with_color(color, iob, "|  ", bold=true)
-        println(iob, key, " = ", val)
+        println(iob, "│   ", key, " = ", val)
     end
+    println(iob, "└ @ ", _module, " ", filepath, ":", line)
     write(logger.stream, take!(buf))
     nothing
 end
+
+_global_logstate = LogState(SimpleLogger(Core.stderr, CoreLogging.Info))
 
 end # CoreLogging

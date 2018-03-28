@@ -26,11 +26,16 @@ A function name may be used alone in place of the tuple (just `:function` or `"f
 this case the name is resolved within the current process. This form can be used to call C library
 functions, functions in the Julia runtime, or functions in an application linked to Julia.
 
-By default, Fortran compilers [generate mangled names](https://en.wikipedia.org/wiki/Name_mangling#Fortran)
-(for example, converting function names to lowercase or uppercase, often appending an underscore),
-and so to call a Fortran function via [`ccall`](@ref) you must pass the mangled identifier corresponding
-to the rule followed by your Fortran compiler.  Also, when calling a Fortran function, all inputs
-must be passed by reference.
+By default, Fortran compilers [generate mangled
+names](https://en.wikipedia.org/wiki/Name_mangling#Fortran) (for example,
+converting function names to lowercase or uppercase, often appending an
+underscore), and so to call a Fortran function via [`ccall`](@ref) you must pass
+the mangled identifier corresponding to the rule followed by your Fortran
+compiler.  Also, when calling a Fortran function, all inputs must be passed as
+pointers to allocated values on the heap or stack. This applies not only to
+arrays and other mutable objects which are normally heap-allocated, but also to
+scalar values such as integers and floats which are normally stack-allocated and
+commonly passed in registers when using C or Julia calling conventions.
 
 Finally, you can use [`ccall`](@ref) to actually generate a call to the library function. Arguments
 to [`ccall`](@ref) are as follows:
@@ -259,7 +264,7 @@ arbitrary new object more appropriate for passing to C.
 This should be used to perform all allocations of memory that will be accessed by the C code.
 For example, this is used to convert an `Array` of objects (e.g. strings) to an array of pointers.
 
-[`Base.unsafe_convert`](@ref) handles conversion to `Ptr` types. It is considered unsafe because
+[`Base.unsafe_convert`](@ref) handles conversion to [`Ptr`](@ref) types. It is considered unsafe because
 converting an object to a native pointer can hide the object from the garbage collector, causing
 it to be freed prematurely.
 
@@ -385,8 +390,9 @@ checks and is only meant to improve readability of the call.
 | `wchar_t`       | `Cwchar_t`           | `Int32` (UNIX), `UInt16` (Windows)           |
 
 !!! note
-    When calling a Fortran function, all inputs must be passed by reference, so all type correspondences
-    above should contain an additional `Ptr{..}` or `Ref{..}` wrapper around their type specification.
+    When calling Fortran, all inputs must be passed by pointers to heap- or stack-allocated
+    values, so all type correspondences above should contain an additional `Ptr{..}` or
+    `Ref{..}` wrapper around their type specification.
 
 !!! warning
     For string arguments (`char*`) the Julia type should be `Cstring` (if NUL- terminated data is
@@ -424,6 +430,35 @@ checks and is only meant to improve readability of the call.
     argv = [ "a.out", "arg1", "arg2" ]
     ccall(:main, Int32, (Int32, Ptr{Ptr{UInt8}}), length(argv), argv)
     ```
+
+!!! note
+    For Fortran functions taking variable length strings of type `character(len=*)` the string lengths
+    are provided as *hidden arguments*. Type and position of these arguments in the list are compiler
+    specific, where compiler vendors usually default to using `Csize_t` as type and append the hidden
+    arguments at the end of the argument list. While this behaviour is fixed for some compilers (GNU),
+    others *optionally* permit placing hidden arguments directly after the character argument (Intel,PGI).
+    For example, Fortran subroutines of the form
+
+    ```fortran
+    subroutine test(str1, str2)
+    character(len=*) :: str1,str2
+    ```
+
+    can be called via the following Julia code, where the lengths are appended
+
+    ```julia
+    str1 = "foo"
+    str2 = "bar"
+    ccall(:test, Void, (Ptr{UInt8}, Ptr{UInt8}, Csize_t, Csize_t),
+                        str1, str2, sizeof(str1), sizeof(str2))
+    ```
+
+!!! warning
+    Fortran compilers *may* also add other hidden arguments for pointers, assumed-shape (`:`)
+    and assumed-size (`*`) arrays. Such behaviour can be avoided by using `ISO_C_BINDING` and
+    including `bind(c)` in the defintion of the subroutine, which is strongly recommended for
+    interoperable code. In this case there will be no hidden arguments, at the cost of some
+    language features (e.g. only `character(len=1)` will be permitted to pass strings).
 
 !!! note
     A C function declared to return `Cvoid` will return the value `nothing` in Julia.
@@ -483,7 +518,7 @@ unsafe_string(str + Core.sizeof(Cint), len)
 
 ### Type Parameters
 
-The type arguments to `ccall` are evaluated statically, when the method containing the ccall is defined.
+The type arguments to `ccall` are evaluated statically, when the method containing the `ccall` is defined.
 They therefore must take the form of a literal tuple, not a variable, and cannot reference local variables.
 
 This may sound like a strange restriction,
@@ -546,7 +581,7 @@ work on hosts without AVX support.
 
 Memory allocation and deallocation of such objects must be handled by calls to the appropriate
 cleanup routines in the libraries being used, just like in any C program. Do not try to free an
-object received from a C library with `Libc.free` in Julia, as this may result in the `free` function
+object received from a C library with [`Libc.free`](@ref) in Julia, as this may result in the `free` function
 being called via the wrong `libc` library and cause Julia to crash. The reverse (passing an object
 allocated in Julia to be freed by an external library) is equally invalid.
 
@@ -554,16 +589,17 @@ allocated in Julia to be freed by an external library) is equally invalid.
 
 In Julia code wrapping calls to external C routines, ordinary (non-pointer) data should be declared
 to be of type `T` inside the [`ccall`](@ref), as they are passed by value.  For C code accepting
-pointers, `Ref{T}` should generally be used for the types of input arguments, allowing the use
+pointers, [`Ref{T}`](@ref) should generally be used for the types of input arguments, allowing the use
 of pointers to memory managed by either Julia or C through the implicit call to [`Base.cconvert`](@ref).
  In contrast, pointers returned by the C function called should be declared to be of output type
-`Ptr{T}`, reflecting that the memory pointed to is managed by C only. Pointers contained in C
+[`Ptr{T}`](@ref), reflecting that the memory pointed to is managed by C only. Pointers contained in C
 structs should be represented as fields of type `Ptr{T}` within the corresponding Julia struct
 types designed to mimic the internal structure of corresponding C structs.
 
-In Julia code wrapping calls to external Fortran routines, all input arguments should be declared
-as of type `Ref{T}`, as Fortran passes all variables by reference. The return type should either
-be `Cvoid` for Fortran subroutines, or a `T` for Fortran functions returning the type `T`.
+In Julia code wrapping calls to external Fortran routines, all input arguments
+should be declared as of type `Ref{T}`, as Fortran passes all variables by
+pointers to memory locations. The return type should either be `Cvoid` for
+Fortran subroutines, or a `T` for Fortran functions returning the type `T`.
 
 ## Mapping C Functions to Julia
 
@@ -660,7 +696,7 @@ For translating a C return type to Julia:
 
 Because C doesn't support multiple return values, often C functions will take pointers to data
 that the function will modify. To accomplish this within a [`ccall`](@ref), you need to first
-encapsulate the value inside an `Ref{T}` of the appropriate type. When you pass this `Ref` object
+encapsulate the value inside a [`Ref{T}`](@ref) of the appropriate type. When you pass this `Ref` object
 as an argument, Julia will automatically pass a C pointer to the encapsulated data:
 
 ```julia
@@ -734,11 +770,13 @@ that has no internal fields and whose sole purpose is to be placed in the type p
 `Ptr` type.  The return type of the [`ccall`](@ref) is declared as `Ptr{gsl_permutation}`, since
 the memory allocated and pointed to by `output_ptr` is controlled by C (and not Julia).
 
-The input `n` is passed by value, and so the function's input signature is simply declared as
-`(Csize_t,)` without any `Ref` or `Ptr` necessary. (If the wrapper was calling a Fortran function
-instead, the corresponding function input signature should instead be `(Ref{Csize_t},)`, since
-Fortran variables are passed by reference.) Furthermore, `n` can be any type that is convertable
-to a `Csize_t` integer; the [`ccall`](@ref) implicitly calls [`Base.cconvert(Csize_t, n)`](@ref).
+The input `n` is passed by value, and so the function's input signature is
+simply declared as `(Csize_t,)` without any `Ref` or `Ptr` necessary. (If the
+wrapper was calling a Fortran function instead, the corresponding function input
+signature should instead be `(Ref{Csize_t},)`, since Fortran variables are
+passed by pointers.) Furthermore, `n` can be any type that is convertable to a
+`Csize_t` integer; the [`ccall`](@ref) implicitly calls [`Base.cconvert(Csize_t,
+n)`](@ref).
 
 Here is a second example wrapping the corresponding destructor:
 
@@ -831,7 +869,7 @@ it must be handled in other ways.
 ## Non-constant Function Specifications
 
 A `(name, library)` function specification must be a constant expression. However, it is possible
-to use computed values as function names by staging through `eval` as follows:
+to use computed values as function names by staging through [`eval`](@ref) as follows:
 
 ```
 @eval ccall(($(string("a", "b")), "lib"), ...
@@ -907,7 +945,7 @@ err = ccall(:gethostname, stdcall, Int32, (Ptr{UInt8}, UInt32), hn, length(hn))
 
 For more information, please see the [LLVM Language Reference](http://llvm.org/docs/LangRef.html#calling-conventions).
 
-There is one additional special calling convention `llvmcall`,
+There is one additional special calling convention [`llvmcall`](@ref Base.llvmcall),
 which allows inserting calls to LLVM intrinsics directly.
 This can be especially useful when targeting unusual platforms such as GPGPUs.
 For example, for [CUDA](http://llvm.org/docs/NVPTXUsage.html), we need to be able to read the thread index:
@@ -963,7 +1001,7 @@ Currently, this is only supported for primitive types or other pointer-free (`is
 Any operation that throws an error is probably currently unimplemented and should be posted as
 a bug so that it can be resolved.
 
-If the pointer of interest is a plain-data array (primitive type or immutable struct), the function [`unsafe_wrap(Array, ptr,dims,[own])`](@ref)
+If the pointer of interest is a plain-data array (primitive type or immutable struct), the function [`unsafe_wrap(Array, ptr,dims, own = false)`](@ref)
 may be more useful. The final parameter should be true if Julia should "take ownership" of the
 underlying buffer and call `free(ptr)` when the returned `Array` object is finalized.  If the
 `own` parameter is omitted or false, the caller must ensure the buffer remains in existence until
@@ -979,7 +1017,7 @@ on the element types of pointers.
 Some C libraries execute their callbacks from a different thread, and since Julia isn't thread-safe
 you'll need to take some extra precautions. In particular, you'll need to set up a two-layered
 system: the C callback should only *schedule* (via Julia's event loop) the execution of your "real"
-callback. To do this, create a `AsyncCondition` object and wait on it:
+callback. To do this, create an [`AsyncCondition`](@ref Base.AsyncCondition) object and [`wait`](@ref) on it:
 
 ```julia
 cond = Base.AsyncCondition()

@@ -2,18 +2,20 @@
 
 # Test functionality of BitSet
 
+using Random
+
 @testset "Construction, collect" begin
     data_in = (1,5,100)
     s = BitSet(data_in)
     data_out = collect(s)
-    @test all(map(d->in(d,data_out), data_in))
+    @test all(map(in(data_out), data_in))
     @test length(data_out) === length(data_in)
 end
 
-@testset "eltype, similar" begin
+@testset "eltype, empty" begin
     @test eltype(BitSet()) === Int
     @test eltype(BitSet) === Int
-    @test isequal(similar(BitSet([1,2,3])), BitSet())
+    @test isequal(empty(BitSet([1,2,3])), BitSet())
 end
 
 @testset "show" begin
@@ -99,9 +101,9 @@ end
     @test_throws MethodError symdiff!(BitSet([1, 2]),  [[1]]) # should not return BitSet([2])
 end
 
-@testset "copy, copy!, similar" begin
+@testset "copy, copy!, empty" begin
     s1 = BitSet([1,2,3])
-    s2 = similar(s1)
+    s2 = empty(s1)
     copy!(s2, s1)
     s3 = copy(s2)
     @test s3 == s2 == s1

@@ -938,12 +938,6 @@ function atanh(z::Complex{T}) where T<:AbstractFloat
 end
 atanh(z::Complex) = atanh(float(z))
 
-function lexcmp(a::Complex, b::Complex)
-    c = cmp(real(a), real(b))
-    c == 0 || return c
-    cmp(imag(a), imag(b))
-end
-
 #Rounding complex numbers
 #Requires two different RoundingModes for the real and imaginary components
 """
@@ -966,9 +960,9 @@ function round(z::Complex{<:AbstractFloat}, ::RoundingMode{MR}, ::RoundingMode{M
 end
 round(z::Complex) = Complex(round(real(z)), round(imag(z)))
 
-function round(z::Complex, digits::Integer, base::Integer=10)
-    Complex(round(real(z), digits, base),
-            round(imag(z), digits, base))
+function round(z::Complex, digits::Integer; base::Integer = 10)
+    Complex(round(real(z), digits, base = base),
+            round(imag(z), digits, base = base))
 end
 
 float(z::Complex{<:AbstractFloat}) = z
@@ -982,7 +976,7 @@ big(z::Complex{T}) where {T<:Real} = Complex{big(T)}(z)
 complex(A::AbstractArray{<:Complex}) = A
 
 function complex(A::AbstractArray{T}) where T
-    if !isconcrete(T)
+    if !isconcretetype(T)
         error("`complex` not defined on abstractly-typed arrays; please convert to a more specific type")
     end
     convert(AbstractArray{typeof(complex(zero(T)))}, A)

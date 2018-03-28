@@ -203,8 +203,8 @@ end
 #   "Fast Half Float Conversion" by Jeroen van der Zijp
 #   ftp://ftp.fox-toolkit.org/pub/fasthalffloatconversion.pdf
 
-const basetable = Vector{UInt16}(uninitialized, 512)
-const shifttable = Vector{UInt8}(uninitialized, 512)
+const basetable = Vector{UInt16}(undef, 512)
+const shifttable = Vector{UInt8}(undef, 512)
 
 for i = 0:255
     e = i - 127
@@ -262,7 +262,6 @@ Bool(x::Float16) = x==0 ? false : x==1 ? true : throw(InexactError(:Bool, Bool, 
     float(x)
 
 Convert a number or array to a floating point data type.
-When passed a string, this function is equivalent to `parse(Float64, x)`.
 """
 float(x) = AbstractFloat(x)
 
@@ -458,22 +457,6 @@ isless( x::Float32, y::Float32) = fpislt(x, y)
 isless( x::Float64, y::Float64) = fpislt(x, y)
 for op in (:<, :<=, :isless)
     @eval ($op)(a::Float16, b::Float16) = ($op)(Float32(a), Float32(b))
-end
-
-function cmp(x::AbstractFloat, y::AbstractFloat)
-    isnan(x) && throw(DomainError(x, "`x` cannot be NaN."))
-    isnan(y) && throw(DomainError(y, "`y` cannot be NaN."))
-    ifelse(x<y, -1, ifelse(x>y, 1, 0))
-end
-
-function cmp(x::Real, y::AbstractFloat)
-    isnan(y) && throw(DomainError(y, "`y` cannot be NaN."))
-    ifelse(x<y, -1, ifelse(x>y, 1, 0))
-end
-
-function cmp(x::AbstractFloat, y::Real)
-    isnan(x) && throw(DomainError(x, "`x` cannot be NaN."))
-    ifelse(x<y, -1, ifelse(x>y, 1, 0))
 end
 
 # Exact Float (Tf) vs Integer (Ti) comparisons
@@ -778,7 +761,8 @@ realmax() = realmax(Float64)
 
 Return the *machine epsilon* of the floating point type `T` (`T = Float64` by
 default). This is defined as the gap between 1 and the next largest value representable by
-`T`, and is equivalent to `eps(one(T))`.
+`typeof(one(T))`, and is equivalent to `eps(one(T))`.  (Since `eps(T)` is a
+bound on the *relative error* of `T`, it is a "dimensionless" quantity like [`one`](@ref).)
 
 ```jldoctest
 julia> eps()
@@ -880,7 +864,7 @@ Base.iszero(x::Float16) = reinterpret(UInt16, x) & ~sign_mask(Float16) == 0x0000
 float(A::AbstractArray{<:AbstractFloat}) = A
 
 function float(A::AbstractArray{T}) where T
-    if !isconcrete(T)
+    if !isconcretetype(T)
         error("`float` not defined on abstractly-typed arrays; please convert to a more specific type")
     end
     convert(AbstractArray{typeof(float(zero(T)))}, A)
@@ -890,8 +874,8 @@ float(r::StepRange) = float(r.start):float(r.step):float(last(r))
 float(r::UnitRange) = float(r.start):float(last(r))
 float(r::StepRangeLen{T}) where {T} =
     StepRangeLen{typeof(float(T(r.ref)))}(float(r.ref), float(r.step), length(r), r.offset)
-function float(r::LinSpace)
-    LinSpace(float(r.start), float(r.stop), length(r))
+function float(r::LinRange)
+    LinRange(float(r.start), float(r.stop), length(r))
 end
 
 # big, broadcast over arrays
@@ -900,6 +884,6 @@ function big end # no prior definitions of big in sysimg.jl, necessitating this
 broadcast(::typeof(big), r::UnitRange) = big(r.start):big(last(r))
 broadcast(::typeof(big), r::StepRange) = big(r.start):big(r.step):big(last(r))
 broadcast(::typeof(big), r::StepRangeLen) = StepRangeLen(big(r.ref), big(r.step), length(r), r.offset)
-function broadcast(::typeof(big), r::LinSpace)
-    LinSpace(big(r.start), big(r.stop), length(r))
+function broadcast(::typeof(big), r::LinRange)
+    LinRange(big(r.start), big(r.stop), length(r))
 end

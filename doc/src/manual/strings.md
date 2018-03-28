@@ -28,9 +28,10 @@ There are a few noteworthy high-level features about Julia's strings:
     additional `AbstractString` subtypes (e.g. for other encodings).  If you define a function expecting
     a string argument, you should declare the type as `AbstractString` in order to accept any string
     type.
-  * Like C and Java, but unlike most dynamic languages, Julia has a first-class type representing
-    a single character, called `Char`. This is just a special kind of 32-bit primitive type whose numeric
-    value represents a Unicode code point.
+  * Like C and Java, but unlike most dynamic languages, Julia has a first-class type for representing
+    a single character, called `AbstractChar`. The built-in `Char` subtype of `AbstractChar`
+    is a 32-bit primitive type that can represent any Unicode character (and which is based
+    on the UTF-8 encoding).
   * As in Java, strings are immutable: the value of an `AbstractString` object cannot be changed.
     To construct a different string value, you construct a new string from parts of other strings.
   * Conceptually, a string is a *partial function* from indices to characters: for some index values,
@@ -41,9 +42,11 @@ There are a few noteworthy high-level features about Julia's strings:
 
 ## [Characters](@id man-characters)
 
-A `Char` value represents a single character: it is just a 32-bit primitive type with a special literal
-representation and appropriate arithmetic behaviors, whose numeric value is interpreted as a
-[Unicode code point](https://en.wikipedia.org/wiki/Code_point). Here is how `Char` values are
+An `Char` value represents a single character: it is just a 32-bit primitive type with a special literal
+representation and appropriate arithmetic behaviors, and which can be converted
+to a numeric value representing a
+[Unicode code point](https://en.wikipedia.org/wiki/Code_point).  (Julia packages may define
+  other subtypes of `AbstractChar`, e.g. to optimize operations for other [text encodings](https://en.wikipedia.org/wiki/Character_encoding).) Here is how `Char` values are
 input and shown:
 
 ```jldoctest
@@ -78,7 +81,7 @@ is a valid code point, use the [`isvalid`](@ref) function:
 
 ```jldoctest
 julia> Char(0x110000)
-'\U110000': Unicode U+110000 (category Cn: Other, not assigned)
+'\U110000': Unicode U+110000 (category In: Invalid, too high)
 
 julia> isvalid(Char, 0x110000)
 false
@@ -129,9 +132,6 @@ julia> Int('\x7f')
 
 julia> Int('\177')
 127
-
-julia> Int('\xff')
-255
 ```
 
 You can do comparisons and a limited amount of arithmetic with `Char` values:
@@ -178,12 +178,15 @@ julia> str[end]
 '\n': ASCII/Unicode U+000a (category Cc: Other, control)
 ```
 
-All indexing in Julia is 1-based: the first element of any integer-indexed object is found at
+Many Julia objects, including strings, can be indexed with integers. The index of the first
+element is returned by [`firstindex(str)`](@ref), and the index of the last element
+with [`lastindex(str)`](@ref). The keyword `end` can be used inside an indexing
+operation as shorthand for the last index along the given dimension.
+Most indexing in Julia is 1-based: the first element of many integer-indexed objects is found at
 index 1. (As we will see below, this does not necessarily mean that the last element is found
 at index `n`, where `n` is the length of the string.)
 
-In any indexing expression, the keyword `end` can be used as a shorthand for the last index (computed
-by [`endof(str)`](@ref)). You can perform arithmetic and other operations with `end`, just like
+You can perform arithmetic and other operations with `end`, just like
 a normal value:
 
 ```jldoctest helloworldstring
@@ -272,11 +275,12 @@ julia> s[1]
 '∀': Unicode U+2200 (category Sm: Symbol, math)
 
 julia> s[2]
-ERROR: UnicodeError: invalid character index
+ERROR: StringIndexError("∀ x ∃ y", 2)
 [...]
 
 julia> s[3]
-ERROR: UnicodeError: invalid character index
+ERROR: StringIndexError("∀ x ∃ y", 3)
+Stacktrace:
 [...]
 
 julia> s[4]
@@ -294,7 +298,8 @@ julia> s[1:1]
 "∀"
 
 julia> s[1:2]
-ERROR: UnicodeError: invalid character index
+ERROR: StringIndexError("∀ x ∃ y", 2)
+Stacktrace:
 [...]
 
 julia> s[1:4]
@@ -302,14 +307,14 @@ julia> s[1:4]
 ```
 
 Because of variable-length encodings, the number of characters in a string (given by [`length(s)`](@ref))
-is not always the same as the last index. If you iterate through the indices 1 through [`endof(s)`](@ref)
+is not always the same as the last index. If you iterate through the indices 1 through [`lastindex(s)`](@ref)
 and index into `s`, the sequence of characters returned when errors aren't thrown is the sequence
-of characters comprising the string `s`. Thus we have the identity that `length(s) <= endof(s)`,
+of characters comprising the string `s`. Thus we have the identity that `length(s) <= lastindex(s)`,
 since each character in a string must have its own index. The following is an inefficient and
 verbose way to iterate through the characters of `s`:
 
 ```jldoctest unicodestring
-julia> for i = 1:endof(s)
+julia> for i = firstindex(s):lastindex(s)
            try
                println(s[i])
            catch
@@ -426,7 +431,7 @@ julia> "v: $v"
 "v: [1, 2, 3]"
 ```
 
-[`string`](@ref) is the identity for `AbstractString` and `Char` values, so these are interpolated
+[`string`](@ref) is the identity for `AbstractString` and `AbstractChar` values, so these are interpolated
 into strings as themselves, unquoted and unescaped:
 
 ```jldoctest
@@ -507,49 +512,48 @@ julia> "1 + 2 = 3" == "1 + 2 = $(1 + 2)"
 true
 ```
 
-You can search for the index of a particular character using the [`search`](@ref) function:
+You can search for the index of a particular character using the [`findfirst`](@ref) function:
 
 ```jldoctest
-julia> search("xylophone", 'x')
+julia> findfirst(isequal('x'), "xylophone")
 1
 
-julia> search("xylophone", 'p')
+julia> findfirst(isequal('p'), "xylophone")
 5
 
-julia> search("xylophone", 'z')
-0
+julia> findfirst(isequal('z'), "xylophone")
 ```
 
-You can start the search for a character at a given offset by providing a third argument:
+You can start the search for a character at a given offset by using [`findnext`](@ref)
+with a third argument:
 
 ```jldoctest
-julia> search("xylophone", 'o')
+julia> findnext(isequal('o'), "xylophone", 1)
 4
 
-julia> search("xylophone", 'o', 5)
+julia> findnext(isequal('o'), "xylophone", 5)
 7
 
-julia> search("xylophone", 'o', 8)
-0
+julia> findnext(isequal('o'), "xylophone", 8)
 ```
 
-You can use the [`contains`](@ref) function to check if a substring is contained in a string:
+You can use the [`occursin`](@ref) function to check if a substring is found within a string:
 
 ```jldoctest
-julia> contains("Hello, world.", "world")
+julia> occursin("world", "Hello, world.")
 true
 
-julia> contains("Xylophon", "o")
+julia> occursin("o", "Xylophon")
 true
 
-julia> contains("Xylophon", "a")
+julia> occursin("a", "Xylophon")
 false
 
-julia> contains("Xylophon", 'o')
+julia> occursin('o', "Xylophon")
 true
 ```
 
-The last example shows that [`contains`](@ref) can also look for a character literal.
+The last example shows that [`occursin`](@ref) can also look for a character literal.
 
 Two other handy string functions are [`repeat`](@ref) and [`join`](@ref):
 
@@ -563,13 +567,14 @@ julia> join(["apples", "bananas", "pineapples"], ", ", " and ")
 
 Some other useful functions include:
 
-  * [`endof(str)`](@ref) gives the maximal (byte) index that can be used to index into `str`.
+  * [`firstindex(str)`](@ref) gives the minimal (byte) index that can be used to index into `str` (always 1 for strings, not necessarily true for other containers).
+  * [`lastindex(str)`](@ref) gives the maximal (byte) index that can be used to index into `str`.
   * [`length(str)`](@ref) the number of characters in `str`.
   * [`length(str, i, j)`](@ref) the number of valid character indices in `str` from `i` to `j`.
   * [`i = start(str)`](@ref start) gives the first valid index at which a character can be found in `str`
     (typically 1).
   * [`c, j = next(str,i)`](@ref next) returns next character at or after the index `i` and the next valid
-    character index following that. With [`start`](@ref) and [`endof`](@ref), can be used to iterate
+    character index following that. With [`start`](@ref) and [`lastindex`](@ref), can be used to iterate
     through the characters in `str`.
   * [`thisind(str, i)`](@ref) given an arbitrary index into a string find the first index of the character into which the index points.
   * [`nextind(str, i, n=1)`](@ref) find the start of the `n`th character starting after index `i`.
@@ -603,20 +608,20 @@ julia> typeof(ans)
 Regex
 ```
 
-To check if a regex matches a string, use [`ismatch`](@ref):
+To check if a regex matches a string, use [`occursin`](@ref):
 
 ```jldoctest
-julia> ismatch(r"^\s*(?:#|$)", "not a comment")
+julia> occursin(r"^\s*(?:#|$)", "not a comment")
 false
 
-julia> ismatch(r"^\s*(?:#|$)", "# a comment")
+julia> occursin(r"^\s*(?:#|$)", "# a comment")
 true
 ```
 
-As one can see here, [`ismatch`](@ref) simply returns true or false, indicating whether the
-given regex matches the string or not. Commonly, however, one wants to know not just whether a
-string matched, but also *how* it matched. To capture this information about a match, use the
-[`match`](@ref) function instead:
+As one can see here, [`occursin`](@ref) simply returns true or false, indicating whether a
+match for the given regex occurs in the string. Commonly, however, one wants to know not
+just whether a string matched, but also *how* it matched. To capture this information about
+a match, use the [`match`](@ref) function instead:
 
 ```jldoctest
 julia> match(r"^\s*(?:#|$)", "not a comment")
@@ -746,14 +751,14 @@ to refer to the nth capture group and prefixing the substitution string with `s`
 with `g<groupname>`. For example:
 
 ```jldoctest
-julia> replace("first second", r"(\w+) (?<agroup>\w+)", s"\g<agroup> \1")
+julia> replace("first second", r"(\w+) (?<agroup>\w+)" => s"\g<agroup> \1")
 "second first"
 ```
 
 Numbered capture groups can also be referenced as `\g<n>` for disambiguation, as in:
 
 ```jldoctest
-julia> replace("a", r".", s"\g<0>1")
+julia> replace("a", r"." => s"\g<0>1")
 "a1"
 ```
 
@@ -821,7 +826,7 @@ produce arrays of bytes. Here is an example using all three:
 
 ```jldoctest
 julia> b"DATA\xff\u2200"
-8-element Array{UInt8,1}:
+8-element Base.CodeUnits{UInt8,String}:
  0x44
  0x41
  0x54
@@ -848,11 +853,11 @@ is encoded as two bytes in UTF-8:
 
 ```jldoctest
 julia> b"\xff"
-1-element Array{UInt8,1}:
+1-element Base.CodeUnits{UInt8,String}:
  0xff
 
 julia> b"\uff"
-2-element Array{UInt8,1}:
+2-element Base.CodeUnits{UInt8,String}:
  0xc3
  0xbf
 ```

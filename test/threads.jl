@@ -27,7 +27,7 @@ function test_threaded_loop_and_atomic_add()
     # and were unique (via pigeon-hole principle).
     @test !(false in found)
     if was_inorder
-        println(STDERR, "Warning: threaded loop executed in order")
+        println(stderr, "Warning: threaded loop executed in order")
     end
 end
 
@@ -47,8 +47,8 @@ function test_threaded_atomic_minmax(m::T,n::T) where T
     mid = m + (n-m)>>1
     x = Atomic{T}(mid)
     y = Atomic{T}(mid)
-    oldx = Vector{T}(uninitialized, n-m+1)
-    oldy = Vector{T}(uninitialized, n-m+1)
+    oldx = Vector{T}(undef, n-m+1)
+    oldy = Vector{T}(undef, n-m+1)
     @threads for i = m:n
         oldx[i-m+1] = atomic_min!(x, T(i))
         oldy[i-m+1] = atomic_max!(y, T(i))
@@ -124,7 +124,7 @@ function threaded_gc_locked(::Type{LockT}) where LockT
     @threads for i = 1:20
         @test lock(critical) === nothing
         @test islocked(critical)
-        gc(false)
+        GC.gc(false)
         @test unlock(critical) === nothing
     end
     @test !islocked(critical)
@@ -452,29 +452,18 @@ function test_nested_loops()
 end
 test_nested_loops()
 
-@testset "libatomic" begin
-    prog = """
-    using Base.Threads
-    function unaligned_setindex!(x::Atomic{UInt128}, v::UInt128)
-        Base.llvmcall(\"\"\"
-            %ptr = inttoptr i$(Sys.WORD_SIZE) %0 to i128*
-            store atomic i128 %1, i128* %ptr release, align 8
-            ret void
-        \"\"\", Cvoid, Tuple{Ptr{UInt128}, UInt128}, unsafe_convert(Ptr{UInt128}, x), v)
+function test_thread_too_few_iters()
+    x = Atomic()
+    a = zeros(Int, nthreads()+2)
+    threaded_loop(a, 1:nthreads()-1, x)
+    found = zeros(Bool, nthreads()+2)
+    for i=1:nthreads()-1
+        found[a[i]] = true
     end
-    code_native(STDOUT, unaligned_setindex!, Tuple{Atomic{UInt128}, UInt128})
-    """
-
-    mktempdir() do dir
-        file = joinpath(dir, "test23901.jl")
-        write(file, prog)
-        run(pipeline(ignorestatus(`$(Base.julia_cmd()) --startup-file=no $file`),
-                     stdout=joinpath(dir, "out.txt"),
-                     stderr=joinpath(dir, "err.txt"),
-                     append=false))
-        out = readchomp(joinpath(dir, "out.txt"))
-        err = readchomp(joinpath(dir, "err.txt"))
-        @test contains(out, "libat_store") || contains(out, "atomic_store")
-        @test !contains(err, "__atomic_store")
-    end
+    @test x[] == nthreads()-1
+    # Next test checks that all loop iterations ran,
+    # and were unique (via pigeon-hole principle).
+    @test !(false in found[1:nthreads()-1])
+    @test !(true in found[nthreads():end])
 end
+test_thread_too_few_iters()
