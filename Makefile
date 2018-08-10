@@ -4,7 +4,37 @@ include $(JULIAHOME)/Make.inc
 VERSDIR := v`cut -d. -f1-2 < $(JULIAHOME)/VERSION`
 
 default: $(JULIA_BUILD_MODE) # contains either "debug" or "release"
-all: debug release
+termux: setuplinks release 
+all: release
+
+setuplinks :
+	mkdir -p $(BUILDROOT)/usr/lib/julia
+ifeq ("$(BIT64_SYSTEM_LIBS)", "1")
+	ln -sf /system/lib64/libm.so $(BUILDROOT)/usr/lib/julia
+	ln -sf /system/lib64/libcompiler_rt.so $(BUILDROOT)/usr/lib/julia
+else
+	ln -sf /system/lib/libm.so $(BUILDROOT)/usr/lib/julia
+	ln -sf /system/lib/libcompiler_rt.so $(BUILDROOT)/usr/lib/julia
+endif
+
+	ln -sf $(PREFIX)/lib/libopenblas.so $(BUILDROOT)/usr/lib/julia
+	ln -sf $(PREFIX)/lib/libarpack.so $(BUILDROOT)/usr/lib/julia
+	ln -sf $(PREFIX)/lib/libpcre2-8.so $(BUILDROOT)/usr/lib/julia
+	ln -sf $(PREFIX)/lib/libcurl.so $(BUILDROOT)/usr/lib/julia
+	ln -sf $(PREFIX)/lib/libssh2.so $(BUILDROOT)/usr/lib/julia
+	ln -sf $(PREFIX)/lib/libblas.so $(BUILDROOT)/usr/lib/julia
+	ln -sf $(PREFIX)/lib/liblapack.so $(BUILDROOT)/usr/lib/julia
+	ln -sf $(PREFIX)/lib/libgit2.so $(BUILDROOT)/usr/lib/julia
+	ln -sf $(PREFIX)/lib/libgmp.so $(BUILDROOT)/usr/lib/julia
+	ln -sf $(PREFIX)/lib/libmpfr.so $(BUILDROOT)/usr/lib/julia
+	ln -sf $(PREFIX)/lib/libamd.so $(BUILDROOT)/usr/lib/julia
+	ln -sf $(PREFIX)/lib/libcamd.so $(BUILDROOT)/usr/lib/julia
+	ln -sf $(PREFIX)/lib/libccolamd.so $(BUILDROOT)/usr/lib/julia
+	ln -sf $(PREFIX)/lib/libcholmod.so $(BUILDROOT)/usr/lib/julia
+	ln -sf $(PREFIX)/lib/libcolamd.so $(BUILDROOT)/usr/lib/julia
+	ln -sf $(PREFIX)/lib/libumfpack.so $(BUILDROOT)/usr/lib/julia
+	ln -sf $(PREFIX)/lib/libspqr.so $(BUILDROOT)/usr/lib/julia
+	ln -sf $(PREFIX)/lib/libsuitesparseconfig.so $(BUILDROOT)/usr/lib/julia
 
 # sort is used to remove potential duplicates
 DIRS := $(sort $(build_bindir) $(build_depsbindir) $(build_libdir) $(build_private_libdir) $(build_libexecdir) $(build_includedir) $(build_includedir)/julia $(build_sysconfdir)/julia $(build_datarootdir)/julia $(build_datarootdir)/julia/stdlib $(build_man1dir))

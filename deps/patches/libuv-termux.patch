@@ -1,0 +1,24 @@
+--- ../JuliaLang-libuv-be31734/src/unix/process.c	2018-03-22 01:34:26.000000000 -0400
++++ ./src/unix/process.c	2018-03-27 19:27:52.757267757 -0400
+@@ -33,6 +33,10 @@
+ #include <fcntl.h>
+ #include <poll.h>
+ #include <signal.h>
++#ifdef __ANDROID__
++/* termux_gcc needs bthread-dev */
++#include <bthread.h>
++#endif
+ 
+ #if defined(__APPLE__) && !TARGET_OS_IPHONE
+ # include <crt_externs.h>
+--- ../JuliaLang-libuv-be31734/src/unix/thread.c	2018-03-22 01:34:26.000000000 -0400
++++ ./src/unix/thread.c	2018-03-27 19:28:25.793854743 -0400
+@@ -82,7 +82,7 @@
+ }
+ 
+ 
+-#if defined(__APPLE__) && defined(__MACH__) || defined(_AIX)
++#if defined(__APPLE__) && defined(__MACH__) || defined(_AIX) || defined(__ANDROID__)
+ int uv_thread_setaffinity(uv_thread_t* tid,
+                           char* cpumask,
+                           char* oldmask,

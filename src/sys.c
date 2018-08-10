@@ -568,7 +568,7 @@ JL_DLLEXPORT const char *jl_pathname_for_handle(void *handle)
     }
     free(pth16);
     return filepath;
-
+#ifndef __BIONIC__
 #else // Linux, FreeBSD, ...
 
     struct link_map *map;
@@ -579,6 +579,7 @@ JL_DLLEXPORT const char *jl_pathname_for_handle(void *handle)
         __msan_unpoison(map, sizeof(struct link_map));
         __msan_unpoison_string(map->l_name);
     }
+#endif
 #endif
     if (map)
         return map->l_name;
