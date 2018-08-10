@@ -10,10 +10,14 @@
 #include <fstream>
 #include <algorithm>
 
+#if !defined(__BIONIC__)
 #if defined(_CPU_AARCH64_) || __GLIBC_PREREQ(2, 16)
 #  include <sys/auxv.h>
 #else
 #  define DYN_GETAUXVAL
+#endif
+#else
+#  include <sys/auxv.h>
 #endif
 
 namespace ARM {

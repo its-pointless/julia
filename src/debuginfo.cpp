@@ -217,7 +217,8 @@ public:
             return L.getSectionLoadAddress(search->second);
         };
 
-#ifdef _CPU_ARM_
+#ifdef _CPU_ARM_ 
+#if defined(__ANDROID__) && !defined(JL_DISABLE_LIBUNWIND)
         // ARM does not have/use .eh_frame
         uint64_t arm_exidx_addr = 0;
         size_t arm_exidx_len = 0;
@@ -264,6 +265,7 @@ public:
             break;
         }
 #endif
+#endif 
 
 #if defined(_OS_WINDOWS_)
         uint64_t SectionAddrCheck = 0; // assert that all of the Sections are at the same location

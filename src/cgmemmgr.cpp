@@ -173,7 +173,7 @@ static intptr_t get_anon_hdl(void)
     char shm_name[] = "julia-codegen-0123456789-0123456789/tmp///";
     pid_t pid = getpid();
     // `shm_open` can't be mapped exec on mac
-#  ifndef _OS_DARWIN_
+#  if !defined(_OS_DARWIN_) && !defined(__BIONIC__)
     do {
         snprintf(shm_name, sizeof(shm_name),
                  "julia-codegen-%d-%d", (int)pid, rand());
@@ -260,7 +260,10 @@ static void *alloc_shared_page(size_t size, size_t *id, bool exec)
 
 ssize_t pwrite_addr(int fd, const void *buf, size_t nbyte, uintptr_t addr)
 {
+#if !defined(__ANDROID__) || !defined(__i386__) && !defined(__arm__)
     static_assert(sizeof(off_t) >= 8, "off_t is smaller than 64bits");
+#endif
+
 #ifdef _P64
     const uintptr_t sign_bit = uintptr_t(1) << 63;
     if (__unlikely(sign_bit & addr)) {
