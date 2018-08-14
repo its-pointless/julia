@@ -1,0 +1,7 @@
+pkg will often attempt to download and inatall prebuilt linux binaries that won't
+work. installing packages that link to libraries is a bit tricky and requires
+wiriting deps.jl yourself so the library string points to installed termux libs.
+Even if you can compile the libs using julia, without setting
+LD_LIBRARY_PATH to where julia installed the libs it won't use them
+causing error.
+
