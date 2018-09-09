@@ -11,12 +11,10 @@ setuplinks :
 	mkdir -p $(BUILDROOT)/usr/lib/julia
 ifeq ("$(BIT64_SYSTEM_LIBS)", "1")
 	ln -sf /system/lib64/libm.so $(BUILDROOT)/usr/lib/julia
-	ln -sf /system/lib64/libcompiler_rt.so $(BUILDROOT)/usr/lib/julia
 else
 	ln -sf /system/lib/libm.so $(BUILDROOT)/usr/lib/julia
-	ln -sf /system/lib/libcompiler_rt.so $(BUILDROOT)/usr/lib/julia
 endif
-
+	ln -sf $(PREFIX)/lib/libcompiler_rtjulia.so $(BUILDROOT)/usr/lib/julia
 	ln -sf $(PREFIX)/lib/libopenblas.so $(BUILDROOT)/usr/lib/julia
 	ln -sf $(PREFIX)/lib/libarpack.so $(BUILDROOT)/usr/lib/julia
 	ln -sf $(PREFIX)/lib/libpcre2-8.so $(BUILDROOT)/usr/lib/julia

@@ -4,9 +4,9 @@ export LD_LIBRARY_PATH=$PWD/usr/lib:$LD_LIBRARY_PATH
 export PATH=$PREFIX/opt/julia-llvm/bin:$PATH
 setupclang-gfort-8
 cp Make.user-termux Make.user
-export LDFLAGS="-L$PREFIX/opt/julia-llvm/lib -L$PWD/usr/lib -L$PREFIX/lib -lm -lcompiler_rt -landroid-support -lopenblas -lbthread  -lgfortran -latomic"
+export LDFLAGS="-L$PREFIX/opt/julia-llvm/lib -L$PWD/usr/lib -L$PREFIX/lib -lm -lcompiler_rtjulia -landroid-support -lopenblas -lbthread  -lgfortran -latomic"
 echo "JULIA for android..."
-echo "THIS NEEDS suitesparse-dev patch tar libgfortran5 openblas arpack-ng libssh2-dev libcurl-dev patchelf libgmp-dev pcre2-dev bthread-dev libclang-dev libllvm-dev libgit2-dev"
+echo "THIS NEEDS suitesparse-dev patch tar libgfortran5 openblas arpack-ng libssh2-dev libcurl-dev patchelf libgmp-dev pcre2-dev bthread-dev libclang-dev libllvm-dev libgit2-dev\n julia-llvm libcompiler-rtjulia"
 echo "arm and aarch64 need gcc-8"
 echo "only arm needs libunwind-dev"
 TERMUX_ARCH=$(dpkg --print-architecture)
