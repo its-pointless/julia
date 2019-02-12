@@ -155,7 +155,7 @@ std::string jl_format_filename(StringRef output_pattern)
                     hostname[sizeof(hostname) - 1] = '\0'; /* Null terminate, just to be safe. */
                     outfile << hostname;
                 }
-#ifndef _OS_WINDOWS_
+#if !defined(_OS_WINDOWS_) && !defined(__ANDROID__)
                 if (c == 'l' && getdomainname(hostname, sizeof(hostname)) == 0) {
                     hostname[sizeof(hostname) - 1] = '\0'; /* Null terminate, just to be safe. */
                     outfile << hostname;

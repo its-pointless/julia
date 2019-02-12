@@ -9,6 +9,28 @@
 extern "C" {
 #endif
 
+#if defined(__ANDROID__) && __ANDROID_API__ < 26
+#include <unistd.h>
+#include <syscall.h>
+JL_DLLEXPORT int futimes(int fd, const struct timeval tv[2]) {
+    if (tv == NULL)
+    return syscall(__NR_utimensat, fd, NULL, NULL, 0);
+
+    if (tv[0].tv_usec < 0 || tv[0].tv_usec >= 1000000 ||
+	tv[1].tv_usec < 0 || tv[1].tv_usec >= 1000000) {
+	 errno = EINVAL;
+    return -1;
+    }
+	  // Convert timeval to timespec.
+     struct timespec ts[2];
+     ts[0].tv_sec = tv[0].tv_sec;
+     ts[0].tv_nsec = tv[0].tv_usec * 1000;
+     ts[1].tv_sec = tv[1].tv_sec;
+     ts[1].tv_nsec = tv[1].tv_usec * 1000;
+     return syscall(__NR_utimensat, fd, NULL, ts, 0);
+}
+#endif                                                       
+
 #ifdef ENABLE_TIMINGS
 #include "timing.h"
 
