@@ -584,7 +584,8 @@ NOINLINE size_t rec_backtrace_ctx_dwarf(jl_bt_element_t *bt_data, size_t maxsize
 
 #else
 // stacktraces are disabled
-static int jl_unw_init(bt_cursor_t *cursor, bt_context_t *context)
+static int jl_unw_init(bt_cursor_t *cursor, bt_context_t *context, int lockless) 
+//static int jl_unw_init(bt_cursor_t *cursor, bt_context_t *context)
 {
     return 0;
 }

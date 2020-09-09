@@ -277,7 +277,7 @@ JL_DLLEXPORT int jl_enqueue_task(jl_task_t *task)
 
 static int running_under_rr(void)
 {
-#ifdef _OS_LINUX_
+#if defined(_OS_LINUX_) && !defined(__ANDROID__)
 #define RR_CALL_BASE 1000
 #define SYS_rrcall_check_presence (RR_CALL_BASE + 8)
     static int checked_running_under_rr = 0;

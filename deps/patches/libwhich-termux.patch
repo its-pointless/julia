@@ -1,0 +1,13 @@
+--- ./libwhich.c.orig	2017-12-23 17:17:44.834409023 -0500
++++ ./libwhich.c	2017-12-23 17:18:48.635402505 -0500
+@@ -57,7 +57,10 @@
+ const char *dlpath(void *handle, struct vector_t name)
+ {
+     struct link_map *map;
++// this doesn't make libwhich work on android but makes it compile...
++#ifndef __ANDROID__
+     dlinfo(handle, RTLD_DI_LINKMAP, &map);
++#endif
+     if (map)
+         return map->l_name;
+     return NULL;

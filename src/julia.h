@@ -79,6 +79,11 @@ typedef struct _jl_taggedvalue_t jl_taggedvalue_t;
 extern "C" {
 #endif
 
+// futimes available in ndk at api level 26
+#if defined(__ANDROID__) && __ANDROID_API__ < 26
+int futimes(int fd, const struct timeval tv[2]);
+#endif
+
 // core data types ------------------------------------------------------------
 
 // the common fields are hidden before the pointer, but the following macro is

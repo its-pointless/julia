@@ -29,6 +29,7 @@
     uv_*;
     add_library_mapping;
     utf8proc_*;
+    futimes;
     jlbacktrace;
     julia_type_to_llvm;
     _IO_stdin_used;

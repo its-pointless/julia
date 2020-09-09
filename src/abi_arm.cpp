@@ -15,6 +15,9 @@
 #ifndef __ARM_EABI__
 #  error "the Julia ARM ABI implementation only supports EABI"
 #endif
+#ifdef __ANDROID__
+#define __ARM_PCS_VFP
+#endif
 
 #ifndef __ARM_PCS_VFP
 #  error "the Julia ARM ABI implementation requires VFP support"
